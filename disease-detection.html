@@ -97,8 +97,9 @@
 
     // ── CONFIG ────────────────────────────────────────────────────────────────
     // Hugging Face Space: pandeygaurav0025/disease_predictor
-    // The Gradio HTTP API endpoint (no token needed for public Spaces)
-    const HF_API_URL = "https://pandeygaurav0025-disease-predictor.hf.space/run/disease_predictor";
+    // Modern Gradio uses a 2-step SSE API under /gradio_api/call/<fn>
+    const HF_BASE = "https://pandeygaurav0025-disease-predictor.hf.space";
+    const HF_API_URL = `${HF_BASE}/gradio_api/call/lambda`;
     // ─────────────────────────────────────────────────────────────────────────
 
     function handleFile(input) {
@@ -137,60 +138,49 @@
       document.getElementById('results-section').innerHTML = '';
       setTimeout(() => window.lucide?.createIcons(), 0);
     }
+async function analyzeImage() {
+  if (!selectedFile) return;
 
-    async function analyzeImage() {
-      if (!selectedFile || !selectedBase64) return;
+  const results = document.getElementById('results-section');
+  results.classList.remove('hidden');
+  results.innerHTML = `Analyzing...`;
 
-      const results = document.getElementById('results-section');
-      results.classList.remove('hidden');
-      results.innerHTML = `
-        <div class="bg-white rounded-xl shadow-lg p-8 text-center">
-          <div class="animate-spin inline-block w-8 h-8 border-4 border-orange-600 border-t-transparent rounded-full mb-4"></div>
-          <p class="text-gray-600">Analyzing your leaf image…</p>
-        </div>
-      `;
+  try {
+    const formData = new FormData();
+    formData.append("image", selectedFile);
 
-      try {
-        /*
-          Gradio /run/predict expects:
-          { "data": [ <image as base64 data-URL string> ] }
+    const response = await fetch("http://localhost:10000/predict_disease", {
+      method: "POST",
+      body: formData
+    });
 
-          It returns:
-          { "data": [ "<prediction label>" ], "duration": ... }
+    const data = await response.json();
 
-          Some spaces return [ { label, confidences: [{label,confidence},...] } ]
-          We handle both shapes below.
-        */
-        const response = await fetch(HF_API_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ data: [selectedBase64] }),
-        });
+    if (!data.success) {
+      throw new Error(data.error || "Prediction failed");
+    }
 
-        if (!response.ok) {
-          const errText = await response.text();
-          throw new Error(`API error ${response.status}: ${errText}`);
+    const disease = data.prediction;
+    const confidence = data.confidence;
+
+    results.innerHTML = `
+      <h2>${disease}</h2>
+      <p>Confidence: ${confidence}%</p>
+    `;
+
+  } catch (error) {
+    results.innerHTML = `<p>Error: ${error.message}</p>`;
+  }
+}
+
+        // If we got string outputs, use the last one (most complete)
+        if (!disease && allStrings.length > 0) {
+          disease = allStrings[allStrings.length - 1].replace(/^Prediction:\s*/i, "").trim();
         }
 
-        const json = await response.json();
-
-        // Parse prediction & confidence from the response
-        let disease = "";
-        let confidence = null;
-
-        const raw = json.data?.[0];
-
-        if (typeof raw === "string") {
-          // plain label string
-          disease = raw;
-        } else if (raw && typeof raw === "object") {
-          // Gradio classification output: { label, confidences: [{label,confidence},...] }
-          disease = raw.label ?? JSON.stringify(raw);
-          const topConf = raw.confidences?.find(c => c.label === disease);
-          if (topConf) confidence = topConf.confidence * 100;
+        if (!disease) {
+          throw new Error("Could not parse prediction. Raw response: " + resultText.slice(0, 500));
         }
-
-        if (!disease) throw new Error("Unexpected response from model.");
 
         const isHealthy = disease.toLowerCase().includes('healthy');
 
@@ -249,8 +239,7 @@
             <h3 class="text-lg font-bold text-red-700">Error</h3>
             <p class="text-gray-700">${error.message}</p>
             <p class="text-sm text-gray-500 mt-2">
-              Make sure the Hugging Face Space is running at:<br>
-              <code class="text-xs bg-gray-100 px-1 rounded">${HF_API_URL}</code>
+              Space URL: <code class="text-xs bg-gray-100 px-1 rounded">${HF_BASE}</code>
             </p>
           </div>
         `;
