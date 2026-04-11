@@ -1,70 +1,205 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
-  <title>Plant Disease Detector</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Disease Detection | KrishiMitra - Government of Jharkhand</title>
+  <meta name="description" content="Upload a leaf photo to detect plant diseases using AI-powered image analysis." />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://use.typekit.net/yjp3aho.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { 'sofia': ['sofia-pro', 'sans-serif'] },
+          colors: {
+            'jharkhand-green': '#228B22',
+            'jharkhand-orange': '#FF8C00'
+          }
+        }
+      }
+    }
+  </script>
 </head>
 
-<body style="font-family: Arial; text-align:center; margin-top:50px;">
+<body class="font-sofia bg-gradient-to-br from-orange-50 to-green-50 min-h-screen">
 
-  <h2>Upload Leaf Image</h2>
+  <main class="pt-20 pb-16">
+    <div class="container mx-auto px-4">
+      <div class="max-w-4xl mx-auto">
 
-  <!-- Upload Box -->
-  <div 
-    onclick="document.getElementById('fileInput').click()" 
-    style="border:2px dashed #999; padding:40px; cursor:pointer; width:300px; margin:auto;">
-    
-    Click here to upload image
-    <input type="file" id="fileInput" accept="image/*" hidden onchange="handleFile(this)">
-  </div>
+        <!-- Back link -->
+        <a href="frontend/index.html"
+          class="inline-flex items-center text-jharkhand-green hover:underline mb-8 text-sm font-medium">
+          <i data-lucide="arrow-left" class="w-4 h-4 mr-1"></i> Back to Home
+        </a>
 
-  <br>
+        <!-- Header -->
+        <div class="text-center mb-12">
+          <h1 class="text-4xl font-bold text-gray-900 mb-4">
+            AI Plant Disease Detection
+          </h1>
+          <p class="text-lg text-gray-600">
+            Upload a photo of a plant leaf and our AI model will identify if it has any disease
+          </p>
+        </div>
 
-  <!-- Result -->
-  <p id="result"></p>
+        <!-- Upload Area -->
+        <div class="bg-white rounded-xl shadow-lg p-8 mb-8">
+
+          <div id="upload-area"
+            class="border-2 border-dashed border-orange-300 rounded-xl p-12 text-center cursor-pointer hover:border-jharkhand-orange hover:bg-orange-50/50 transition-all"
+            onclick="document.getElementById('file-input').click()">
+            <i data-lucide="upload-cloud" class="w-16 h-16 text-jharkhand-orange mx-auto mb-4"></i>
+            <p class="text-lg font-semibold text-gray-700 mb-2">Click to upload a leaf image</p>
+            <p class="text-sm text-gray-500">Supports JPG, PNG, WEBP — max 10 MB</p>
+            <input type="file" id="file-input" accept="image/*" class="hidden" onchange="handleFile(this)">
+          </div>
+
+          <!-- Preview -->
+          <div id="preview-container" class="hidden mt-6">
+            <div class="flex flex-col md:flex-row gap-6 items-start">
+              <div class="w-full md:w-1/2">
+                <img id="preview-img" class="w-full rounded-lg shadow-md" alt="Uploaded leaf" />
+              </div>
+              <div class="w-full md:w-1/2 flex flex-col gap-4">
+                <p class="text-sm text-gray-500" id="file-info"></p>
+                <button onclick="analyzeImage()"
+                  class="bg-jharkhand-orange text-white px-6 py-3 rounded-lg font-semibold hover:bg-orange-600 transition inline-flex items-center justify-center">
+                  <i data-lucide="scan" class="w-5 h-5 mr-2"></i>
+                  Analyze Leaf
+                </button>
+                <button onclick="resetUpload()"
+                  class="border border-gray-300 text-gray-600 px-6 py-3 rounded-lg hover:bg-gray-50 transition text-sm">
+                  Choose Different Image
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Results -->
+        <div id="results-section" class="hidden"></div>
+
+      </div>
+    </div>
+  </main>
 
   <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      if (window.lucide) lucide.createIcons();
+    });
+
     let selectedFile = null;
 
     function handleFile(input) {
-      selectedFile = input.files[0];
-      if (!selectedFile) return;
+      const file = input.files[0];
+      if (!file) return;
 
-      predict();
-    }
+      if (file.size > 10 * 1024 * 1024) {
+        alert('File too large. Max 10 MB.');
+        return;
+      }
 
-    function predict() {
-      if (!selectedFile) return;
-
-      document.getElementById("result").innerText = "Processing...";
+      selectedFile = file;
 
       const reader = new FileReader();
+      reader.onload = (e) => {
+        document.getElementById('preview-img').src = e.target.result;
+        document.getElementById('file-info').textContent = `${file.name}  •  ${(file.size / 1024).toFixed(0)} KB`;
+        document.getElementById('preview-container').classList.remove('hidden');
+        document.getElementById('upload-area').classList.add('hidden');
+        document.getElementById('results-section').classList.add('hidden');
+        document.getElementById('results-section').innerHTML = '';
+        // Re-render icons for new buttons
+        setTimeout(() => window.lucide?.createIcons(), 0);
+      };
+      reader.readAsDataURL(file);
+    }
 
-      reader.onload = function () {
+    function resetUpload() {
+      selectedFile = null;
+      document.getElementById('file-input').value = '';
+      document.getElementById('preview-container').classList.add('hidden');
+      document.getElementById('upload-area').classList.remove('hidden');
+      document.getElementById('results-section').classList.add('hidden');
+      document.getElementById('results-section').innerHTML = '';
+      setTimeout(() => window.lucide?.createIcons(), 0);
+    }
+
+async function analyzeImage() {
+  console.log("🔥 Button clicked");
+
+  if (!selectedFile) {
+    alert("No file selected");
+    return;
+  }
+
+  const results = document.getElementById('results-section');
+  results.classList.remove('hidden');
+
+  // ✅ Loading UI
+  results.innerHTML = `
+    <div class="bg-white p-6 rounded-lg text-center">
+      <p class="text-gray-600">⏳ Processing image...</p>
+    </div>
+  `;
+
+  try {
+    const reader = new FileReader();
+
+    reader.onload = async () => {
+      try {
+        console.log("📸 File loaded");
+
         const base64Image = reader.result;
 
-        fetch("https://pandeygaurav0025-disease-predictor.hf.space/run/predict", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            data: [base64Image]
-          })
-        })
-        .then(res => res.json())
-        .then(data => {
-          document.getElementById("result").innerText = data.data[0];
-        })
-        .catch(err => {
-          console.error(err);
-          document.getElementById("result").innerText = "Error: " + err.message;
-        });
-      };
+        console.log("🚀 Sending request...");
 
-      reader.readAsDataURL(selectedFile);
-    }
-  </script>
+        const response = await fetch(
+          "https://pandeygaurav0025-disease-predictor.hf.space/run/predict",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              data: [base64Image]
+            })
+          }
+        );
+        
+        if (!response.ok) {
+          throw new Error("API failed: " + response.status);
+        }
+        
+        const result = await response.json();
+        
+        console.log("📊 Result:", result);
+        
+        const prediction = result?.data?.[0] || "No result received";
+        
+        results.innerHTML = `
+          <div class="bg-white rounded-xl shadow-lg p-8 text-center">
+            <h3 class="text-xl font-bold text-green-700 mb-4">Prediction</h3>
+            <p class="text-2xl font-semibold">${prediction}</p>
+          </div>
+        `;
+        
+        setTimeout(() => window.lucide?.createIcons(), 0);
 
-</body>
-</html>
+      } catch (err) {
+        console.error("❌ Inner error:", err);
+        alert("Error: " + err.message);
+      }
+    };
+
+    reader.readAsDataURL(selectedFile);
+
+  } catch (error) {
+    console.error("❌ Outer error:", error);
+    alert(error.message);
+  }
+}
