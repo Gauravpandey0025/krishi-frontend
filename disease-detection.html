@@ -59,30 +59,33 @@
           </div>
 
           <!-- Preview -->
-          <div id="preview-container" class="hidden mt-6 text-center">
-            <img id="preview-img" style="max-width:200px;" />
-            <p id="file-info"></p>
-            <button onclick="analyzeImage()">Analyze</button>
-          </div>
-            <div class="flex flex-col md:flex-row gap-6 items-start">
-              <div class="w-full md:w-1/2">
-                <img id="preview-img" class="w-full rounded-lg shadow-md" alt="Uploaded leaf" />
-              </div>
-              <div class="w-full md:w-1/2 flex flex-col gap-4">
-                <p class="text-sm text-gray-500" id="file-info"></p>
-                <button onclick="analyzeImage()"
-                  class="bg-jharkhand-orange text-white px-6 py-3 rounded-lg font-semibold hover:bg-orange-600 transition inline-flex items-center justify-center">
-                  <i data-lucide="scan" class="w-5 h-5 mr-2"></i>
-                  Analyze Leaf
-                </button>
-                <button onclick="resetUpload()"
-                  class="border border-gray-300 text-gray-600 px-6 py-3 rounded-lg hover:bg-gray-50 transition text-sm">
-                  Choose Different Image
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+<div id="preview-container" class="hidden mt-6">
+  <div class="flex flex-col md:flex-row gap-6 items-start">
+
+    <!-- Image Preview -->
+    <div class="w-full md:w-1/2">
+      <img id="preview-img" class="w-full rounded-lg shadow-md" alt="Uploaded leaf" />
+    </div>
+
+    <!-- Info + Actions -->
+    <div class="w-full md:w-1/2 flex flex-col gap-4">
+
+      <p class="text-sm text-gray-500" id="file-info"></p>
+
+      <button onclick="analyzeImage()"
+        class="bg-jharkhand-orange text-white px-6 py-3 rounded-lg font-semibold hover:bg-orange-600 transition inline-flex items-center justify-center">
+        Analyze Leaf
+      </button>
+
+      <button onclick="resetUpload()"
+        class="border border-gray-300 text-gray-600 px-6 py-3 rounded-lg hover:bg-gray-50 transition text-sm">
+        Choose Different Image
+      </button>
+
+    </div>
+
+  </div>
+</div>
 
         <!-- Results -->
         <div id="results-section" class="hidden"></div>
