@@ -59,7 +59,11 @@
           </div>
 
           <!-- Preview -->
-          <div id="preview-container" class="hidden mt-6">
+          <div id="preview-container" class="hidden mt-6 text-center">
+            <img id="preview-img" style="max-width:200px;" />
+            <p id="file-info"></p>
+            <button onclick="analyzeImage()">Analyze</button>
+          </div>
             <div class="flex flex-col md:flex-row gap-6 items-start">
               <div class="w-full md:w-1/2">
                 <img id="preview-img" class="w-full rounded-lg shadow-md" alt="Uploaded leaf" />
