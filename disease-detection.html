@@ -138,40 +138,64 @@
       document.getElementById('results-section').innerHTML = '';
       setTimeout(() => window.lucide?.createIcons(), 0);
     }
-async function analyzeImage() {
-  if (!selectedFile) return;
 
-  const results = document.getElementById('results-section');
-  results.classList.remove('hidden');
-  results.innerHTML = `Analyzing...`;
+    async function analyzeImage() {
+      if (!selectedFile || !selectedBase64) return;
 
-  try {
-    const formData = new FormData();
-    formData.append("image", selectedFile);
+      const results = document.getElementById('results-section');
+      results.classList.remove('hidden');
+      results.innerHTML = `
+        <div class="bg-white rounded-xl shadow-lg p-8 text-center">
+          <div class="animate-spin inline-block w-8 h-8 border-4 border-orange-600 border-t-transparent rounded-full mb-4"></div>
+          <p class="text-gray-600">Analyzing your leaf image…</p>
+        </div>
+      `;
 
-    const response = await fetch("http://localhost:10000/predict_disease", {
-      method: "POST",
-      body: formData
-    });
+      try {
+        // Step 1: POST to submit job
+        const postRes = await fetch(HF_API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ data: [selectedBase64] }),
+        });
 
-    const data = await response.json();
+        if (!postRes.ok) {
+          const errText = await postRes.text();
+          throw new Error(`API error ${postRes.status}: ${errText}`);
+        }
 
-    if (!data.success) {
-      throw new Error(data.error || "Prediction failed");
-    }
+        const postJson = await postRes.json();
+        const event_id = postJson.event_id;
+        if (!event_id) throw new Error("No event_id. Full response: " + JSON.stringify(postJson));
 
-    const disease = data.prediction;
-    const confidence = data.confidence;
+        // Step 2: GET result stream
+        const resultRes = await fetch(`${HF_BASE}/gradio_api/call/lambda/${event_id}`);
+        if (!resultRes.ok) throw new Error(`Result fetch error ${resultRes.status}`);
 
-    results.innerHTML = `
-      <h2>${disease}</h2>
-      <p>Confidence: ${confidence}%</p>
-    `;
+        const resultText = await resultRes.text();
 
-  } catch (error) {
-    results.innerHTML = `<p>Error: ${error.message}</p>`;
-  }
-}
+        // DEBUG: show raw response so we know what to parse
+        console.log("RAW SSE RESPONSE:", resultText);
+
+        // Parse all data: lines, collect every non-empty string value
+        let disease = "";
+        let confidence = null;
+        const allStrings = [];
+
+        for (const line of resultText.split("\n")) {
+          if (!line.startsWith("data: ")) continue;
+          try {
+            const parsed = JSON.parse(line.slice(6));
+            const raw = Array.isArray(parsed) ? parsed[0] : (parsed?.data?.[0] ?? null);
+            if (typeof raw === "string" && raw.trim()) {
+              allStrings.push(raw.trim());
+            } else if (raw && typeof raw === "object" && raw.label) {
+              disease = raw.label.replace(/^Prediction:\s*/i, "").trim();
+              const topConf = raw.confidences?.find(c => c.label === raw.label);
+              if (topConf) confidence = topConf.confidence * 100;
+            }
+          } catch {}
+        }
 
         // If we got string outputs, use the last one (most complete)
         if (!disease && allStrings.length > 0) {
