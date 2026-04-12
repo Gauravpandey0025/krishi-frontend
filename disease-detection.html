@@ -145,7 +145,7 @@ async function analyzeImage() {
     return;
   }
 
-  const results = document.getElementById('results-section');
+  const results = document.getElementById("results-section");
   results.innerHTML = "Processing...";
 
   const reader = new FileReader();
@@ -154,7 +154,7 @@ async function analyzeImage() {
     const base64 = reader.result;
 
     try {
-      // STEP 1: send request
+      // STEP 1: Send request
       const res = await fetch(
         "https://pandeygaurav0025-disease-predictor.hf.space/gradio_api/call/predict",
         {
@@ -170,14 +170,14 @@ async function analyzeImage() {
 
       const { event_id } = await res.json();
 
-      // STEP 2: get result
+      if (!event_id) throw new Error("No event_id");
+
+      // STEP 2: Get result (SSE)
       const resultRes = await fetch(
         `https://pandeygaurav0025-disease-predictor.hf.space/gradio_api/call/predict/${event_id}`
       );
 
       const text = await resultRes.text();
-
-      console.log("RAW:", text);
 
       let disease = "";
 
@@ -204,6 +204,8 @@ async function analyzeImage() {
     }
   };
 
+  reader.readAsDataURL(selectedFile); // 🔥 MUST BE BASE64
+}
   reader.readAsDataURL(selectedFile); // 🔥 REQUIRED
 }
   </script>
