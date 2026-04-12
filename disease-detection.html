@@ -141,17 +141,22 @@
 
 async function analyzeImage() {
   if (!selectedFile) {
-    alert("Upload image first");
+    alert("Please upload an image");
     return;
   }
 
   const results = document.getElementById('results-section');
-  results.innerHTML = "Processing...";
+  results.classList.remove('hidden');
+  results.innerHTML = `
+    <div class="bg-white rounded-xl shadow-lg p-8 text-center">
+      <div class="animate-spin inline-block w-8 h-8 border-4 border-orange-600 border-t-transparent rounded-full mb-4"></div>
+      <p class="text-gray-600">Analyzing your leaf image…</p>
+    </div>
+  `;
 
   try {
+    // ✅ Send file (NOT base64)
     const formData = new FormData();
-
-    // 🔥 IMPORTANT: name must match API
     formData.append("image_path", selectedFile);
 
     const response = await fetch(
@@ -162,19 +167,92 @@ async function analyzeImage() {
       }
     );
 
-    const result = await response.json();
-    console.log("RESULT:", result);
-
-    let disease = "";
-
-    if (result?.data && result.data.length > 0) {
-      disease = result.data[0].replace("🌿 Prediction:", "").trim();
+    if (!response.ok) {
+      throw new Error("API error: " + response.status);
     }
 
-    results.innerHTML = `<h2>${disease}</h2>`;
+    const result = await response.json();
+    console.log("FULL RESPONSE:", result);
 
-  } catch (err) {
-    results.innerHTML = `<p>Error: ${err.message}</p>`;
+    // ✅ Robust parsing (handles all cases)
+    let disease = "";
+
+    if (result?.data) {
+      let raw = result.data;
+
+      // handle nested array
+      if (Array.isArray(raw[0])) {
+        raw = raw[0];
+      }
+
+      if (typeof raw[0] === "string") {
+        disease = raw[0];
+      } else if (typeof raw[0] === "object" && raw[0].label) {
+        disease = raw[0].label;
+      }
+    }
+
+    if (!disease) {
+      throw new Error("Prediction not found in response");
+    }
+
+    // clean text
+    disease = disease.replace("🌿 Prediction:", "").trim();
+
+    const isHealthy = disease.toLowerCase().includes("healthy");
+
+    // ✅ UI Output
+    results.innerHTML = `
+      <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+        <div class="px-8 py-5 ${isHealthy ? 'bg-green-700' : 'bg-red-700'}">
+          <h3 class="text-xl font-bold text-white">
+            ${isHealthy ? '✅ Healthy Plant' : '⚠️ Disease Detected'}
+          </h3>
+        </div>
+
+        <div class="p-8 text-center">
+          <div class="text-4xl font-bold ${isHealthy ? 'text-green-700' : 'text-red-700'} mb-4">
+            ${disease}
+          </div>
+
+          ${
+            !isHealthy
+              ? `
+            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
+              <h4 class="font-semibold text-yellow-800 mb-2">💡 Recommended Actions</h4>
+              <ul class="text-sm text-yellow-700 list-disc list-inside">
+                <li>Consult agriculture expert</li>
+                <li>Isolate affected plants</li>
+                <li>Apply proper treatment</li>
+              </ul>
+            </div>
+          `
+              : `
+            <div class="bg-green-50 border border-green-200 rounded-lg p-4 mt-4">
+              <p class="text-green-700">Your plant is healthy 🌿</p>
+            </div>
+          `
+          }
+
+          <div class="text-center mt-6">
+            <button onclick="resetUpload()"
+              class="bg-jharkhand-orange text-white px-6 py-3 rounded-lg font-semibold hover:bg-orange-600 transition">
+              Analyze Another Image
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+
+  } catch (error) {
+    console.error(error);
+
+    results.innerHTML = `
+      <div class="bg-white rounded-xl shadow-lg p-8 border-l-4 border-red-500">
+        <h3 class="text-lg font-bold text-red-700">Error</h3>
+        <p>${error.message}</p>
+      </div>
+    `;
   }
 }
   </script>
