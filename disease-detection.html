@@ -98,7 +98,7 @@
     // ── CONFIG ────────────────────────────────────────────────────────────────
     // Hugging Face Space: pandeygaurav0025/disease_predictor
     // Modern Gradio uses a 2-step SSE API under /gradio_api/call/<fn>
-    const HF_BASE = "https://pandeygaurav0025-disease-predictor.hf.space/gradio_api/call/predict";
+    const HF_BASE = "https://pandeygaurav0025-disease-predictor.hf.space/run/predict";
     const HF_API_URL = `${HF_BASE}/gradio_api/call/lambda`;
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -149,63 +149,34 @@ async function analyzeImage() {
   results.innerHTML = "Processing...";
 
   try {
-    const reader = new FileReader();
+    const formData = new FormData();
+    formData.append("image_path", selectedFile); // 🔥 IMPORTANT
 
-    reader.onload = async () => {
-      const base64 = reader.result;
-
-      // STEP 1: Send request
-      const postRes = await fetch(
-        "https://pandeygaurav0025-disease-predictor.hf.space/gradio_api/call/predict",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            data: [base64]
-          })
-        }
-      );
-
-      const postData = await postRes.json();
-      const event_id = postData.event_id;
-
-      if (!event_id) throw new Error("No event_id received");
-
-      // STEP 2: Get result
-      const resultRes = await fetch(
-        `https://pandeygaurav0025-disease-predictor.hf.space/gradio_api/call/predict/${event_id}`
-      );
-
-      const text = await resultRes.text();
-
-      console.log("RAW:", text);
-
-      let disease = "";
-
-      // parse SSE response
-      for (const line of text.split("\n")) {
-        if (line.startsWith("data: ")) {
-          try {
-            const parsed = JSON.parse(line.slice(6));
-            if (parsed?.data?.[0]) {
-              disease = parsed.data[0];
-            }
-          } catch {}
-        }
+    const response = await fetch(
+      "https://pandeygaurav0025-disease-predictor.hf.space/run/predict",
+      {
+        method: "POST",
+        body: formData
       }
+    );
 
-      if (!disease) throw new Error("No prediction found");
+    const result = await response.json();
+    console.log("RESULT:", result);
 
-      disease = disease.replace("🌿 Prediction:", "").trim();
+    let disease = "";
 
-      results.innerHTML = `<h2>${disease}</h2>`;
-    };
+    if (result?.data?.[0]) {
+      disease = result.data[0];
+    }
 
-    reader.readAsDataURL(selectedFile);
+    if (!disease) throw new Error("No prediction");
+
+    disease = disease.replace("🌿 Prediction:", "").trim();
+
+    results.innerHTML = `<h2>${disease}</h2>`;
 
   } catch (err) {
+    console.error(err);
     results.innerHTML = `<p>Error: ${err.message}</p>`;
   }
 }
