@@ -36,7 +36,7 @@
 
   <!-- Navbar -->
   <nav
-    class="fixed w-full top-0 z-50 relative backdrop-blur supports-[backdrop-filter]:bg-white/60 bg-white/80 border-b border-white/30">
+    class="fixed w-full top-0 z-50 backdrop-blur supports-[backdrop-filter]:bg-white/60 bg-white/80 border-b border-white/30">
     <div class="container mx-auto px-4 flex items-center justify-between h-16">
       <a href="#" class="flex items-center space-x-2">
         <i data-lucide="sprout" class="w-6 h-6 text-jharkhand-green"></i>
@@ -390,12 +390,9 @@
 
           <h4 class="font-semibold mb-4 text-white">Connect</h4>
           <div class="flex gap-3">
-            <script src="https://unpkg.com/lucide@latest/dist/lucide-tree.js"></script>
-            <script>
-              lucide.createIcons();
-            </script>
+
             <!-- Resume -->
-            <a href="https://drive.google.com/file/d/1SMxlus5R3kFVpteFKNkEZQAIp1xIy4cx/view?usp=sharing" target="_blank"
+            <a href="https://drive.google.com/file/d/1aDY8XogCYtq4L-zvorzBrc3aDatqj9oA/view?usp=sharing" target="_blank"
               title="Resume"
               class="p-2 rounded-full border border-white/20 hover:bg-white/10 hover:scale-110 transition">
               <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" stroke="currentColor"
@@ -636,10 +633,12 @@
       en: {
         badge: 'Government of Jharkhand Initiative',
         titleHi: 'कृषि मित्र',
-        tagline: 'AI-powered crop recommendation with disease prediction , best yield prediction, and market analysis',
+        tagline: 'AI-powered crop recommendation with disease prediction, best yield prediction, and market analysis',
         btn1: 'Get Crop Recommendations',
         btn2: 'Disease Detection',
-
+        farmers: 'Farmers Served',
+        accuracy: 'Accuracy',
+        districts: 'Districts Covered',
       },
       hi: {
         badge: 'झारखंड सरकार की पहल',
@@ -848,38 +847,6 @@
       }
     })();
   </script>
-  <!-- ✅ PASTE HERE -->
-<script>
-async function uploadImage() {
-  const fileInput = document.getElementById("imageInput");
-  const file = fileInput.files[0];
-
-  if (!file) {
-    alert("Please select an image");
-    return;
-  }
-
-  const formData = new FormData();
-  formData.append("image", file);
-
-  try {
-    const response = await fetch(
-      "https://krishi-mitra-backend-3.onrender.com/predict_disease",
-      {
-        method: "POST",
-        body: formData
-      }
-    );
-
-    const data = await response.json();
-
-    alert("Prediction: " + data.prediction + "\nConfidence: " + data.confidence);
-
-  } catch (error) {
-    alert("Error occurred");
-  }
-}
-</script>
 </body>
 
 </html>
