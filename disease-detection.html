@@ -199,9 +199,9 @@
           } catch (e) {}
         }
 
-if (!disease) {
-  throw new Error("Could not extract prediction");
-}
+        if (!disease) {
+          throw new Error("Could not extract prediction");
+        }
 
         // If we got string outputs, use the last one (most complete)
         const validResult = allStrings.find(str => 
