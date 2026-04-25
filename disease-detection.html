@@ -180,22 +180,28 @@
         // Parse all data: lines, collect every non-empty string value
         let disease = "";
         let confidence = null;
-        const allStrings = [];
-
+        
         for (const line of resultText.split("\n")) {
           if (!line.startsWith("data: ")) continue;
+        
           try {
             const parsed = JSON.parse(line.slice(6));
-            const raw = Array.isArray(parsed) ? parsed[0] : (parsed?.data?.[0] ?? null);
-            if (typeof raw === "string" && raw.trim()) {
-              allStrings.push(raw.trim());
-            } else if (raw && typeof raw === "object" && raw.label) {
-              disease = raw.label.replace(/^Prediction:\s*/i, "").trim();
-              const topConf = raw.confidences?.find(c => c.label === raw.label);
-              if (topConf) confidence = topConf.confidence * 100;
+        
+            // ✅ Handle Gradio response
+            const data = parsed?.data?.[0] || parsed;
+        
+            if (data?.label) {
+              disease = data.label;
+              confidence = data.confidence;
+              break;
             }
-          } catch {}
+        
+          } catch (e) {}
         }
+
+if (!disease) {
+  throw new Error("Could not extract prediction");
+}
 
         // If we got string outputs, use the last one (most complete)
         const validResult = allStrings.find(str => 
