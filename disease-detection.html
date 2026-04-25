@@ -182,42 +182,34 @@
           let confidence = null;
           
           for (const line of resultText.split("\n")) {
-            if (!line.startsWith("data: ")) continue;
+            if (!line.startsWith("data:")) continue;
           
             try {
-              const parsed = JSON.parse(line.slice(6));
+              const parsed = JSON.parse(line.replace("data:", "").trim());
           
-              // 🔥 HANDLE ARRAY RESPONSE
-              if (Array.isArray(parsed)) {
-                parsed.forEach(item => {
-                  if (item && typeof item === "object" && item.label) {
-                    disease = item.label;
-                    confidence = item.confidence;
-                  }
-                });
-              }
-          
-              // 🔥 HANDLE {data: [...]}
+              // ✅ MOST IMPORTANT CASE (this is yours)
               if (parsed?.data && Array.isArray(parsed.data)) {
-                parsed.data.forEach(item => {
-                  if (item && typeof item === "object" && item.label) {
-                    disease = item.label;
-                    confidence = item.confidence;
-                  }
-                });
+                const obj = parsed.data.find(item => item && item.label);
+          
+                if (obj) {
+                  disease = obj.label;
+                  confidence = obj.confidence;
+                  break;
+                }
               }
           
-              // 🔥 HANDLE DIRECT OBJECT
-              if (parsed && typeof parsed === "object" && parsed.label) {
+              // fallback (rare)
+              if (parsed?.label) {
                 disease = parsed.label;
                 confidence = parsed.confidence;
+                break;
               }
           
             } catch (e) {}
           }
           
           if (!disease) {
-            console.log("RAW RESPONSE:", resultText);
+            console.log("FULL RESPONSE:", resultText);
             throw new Error("Could not extract prediction");
           }
 
