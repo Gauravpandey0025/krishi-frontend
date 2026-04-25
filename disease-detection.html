@@ -199,21 +199,22 @@
 
         // If we got string outputs, use the last one (most complete)
         const validResult = allStrings.find(str => 
-        typeof str === "string" && str.match(/\(\d+(\.\d+)?%\)/)
+          typeof str === "string" && str.match(/\(\d+(\.\d+)?%\)/)
         );
-
+        
         if (!validResult) {
           console.log("DEBUG allStrings:", allStrings);
           throw new Error("Valid prediction not found");
         }
         
+        // Extract disease
         disease = validResult
-        .replace(/^[^\w]+/, '')   // removes ANY emoji or symbol at start
-        .replace(/\(.*\)/, '')    // removes (xx%)
-        .trim();
-        const match = validResult.match(/\((.*?)%\)/);
-        if (match) confidence = parseFloat(match[1]);
+          .replace(/\(.*\)/, '')   // remove (xx%)
+          .trim();
 
+// Extract confidence
+const match = validResult.match(/\((.*?)%\)/);
+if (match) confidence = parseFloat(match[1]);
         if (!disease) {
           throw new Error("Could not parse prediction. Raw response: " + resultText.slice(0, 500));
         }
