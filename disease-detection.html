@@ -135,40 +135,46 @@
     function extractPrediction(resultText) {
       let disease = "";
       let confidence = null;
-
+      
       for (const rawLine of resultText.split("\n")) {
         const line = rawLine.trim();
         if (!line.startsWith("data:")) continue;
-
-        const payload = line.replace(/^data:\s*/, "").trim();
-        if (!payload || payload === "null" || payload === "[DONE]") continue;
-
+      
+        const payloadText = line.replace(/^data:\s*/, "").trim();
+        if (!payloadText || payloadText === "null" || payloadText === "[DONE]") continue;
+      
         try {
-          const parsed = JSON.parse(payload);
-
-          if (parsed?.data && Array.isArray(parsed.data)) {
-            const obj = parsed.data.find(item => item && typeof item === "object" && item.label);
-            if (obj) {
-              disease = obj.label;
-              confidence = obj.confidence ?? null;
-              break;
-            }
-          }
-
-          if (parsed?.label) {
-            disease = parsed.label;
-            confidence = parsed.confidence ?? null;
+          const parsed = JSON.parse(payloadText);
+      
+          // Case 1: direct array response
+          if (Array.isArray(parsed) && parsed[0]?.label) {
+            disease = parsed[0].label;
+            confidence = parsed[0].confidence ?? null;
             break;
           }
-        } catch (e) {
-          console.log("Skipping unparsable SSE payload:", payload);
-        }
-      }
 
-      if (!disease) return null;
-
-      return { disease, confidence };
+    // Case 2: wrapped as { data: [...] }
+    if (parsed?.data?.[0]?.label) {
+      disease = parsed.data[0].label;
+      confidence = parsed.data[0].confidence ?? null;
+      break;
     }
+
+    // Case 3: direct object
+    if (parsed?.label) {
+      disease = parsed.label;
+      confidence = parsed.confidence ?? null;
+      break;
+    }
+  } catch (e) {
+    console.log("SSE parse skip:", payloadText);
+  }
+}
+
+if (!disease) {
+  throw new Error(`Could not extract prediction.\n${resultText}`);
+}
+
 
   async function analyzeImage() {
     if (!selectedFile) {
