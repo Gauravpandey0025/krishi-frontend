@@ -82,7 +82,7 @@
 
   <script>
     document.addEventListener("DOMContentLoaded", () => {
-      if (window.lucide) lucide.createIcons();
+      window.lucide?.createIcons();
     });
 
     let selectedFile = null;
@@ -92,9 +92,7 @@
     const HF_API_URL = `${HF_BASE}/gradio_api/call/lambda`;
 
     function refreshIcons() {
-      setTimeout(() => {
-        if (window.lucide) lucide.createIcons();
-      }, 0);
+      setTimeout(() => window.lucide?.createIcons(), 0);
     }
 
     function handleFile(input) {
@@ -120,7 +118,6 @@
         document.getElementById("results-section").innerHTML = "";
         refreshIcons();
       };
-
       reader.readAsDataURL(file);
     }
 
@@ -135,12 +132,12 @@
       refreshIcons();
     }
 
-    function tryParseLooseObject(str) {
+    function parseLooseJson(text) {
       try {
-        return JSON.parse(str);
+        return JSON.parse(text);
       } catch (_) {
         try {
-          const fixed = str
+          const fixed = text
             .replace(/([{,]\s*)'([^']+?)'\s*:/g, '$1"$2":')
             .replace(/:\s*'([^']*?)'/g, ': "$1"');
           return JSON.parse(fixed);
@@ -160,36 +157,54 @@
         const payload = line.replace(/^data:\s*/, "").trim();
         if (!payload || payload === "[DONE]") continue;
 
-        const parsed = tryParseLooseObject(payload);
+        const parsed = parseLooseJson(payload);
         if (!parsed) continue;
 
-        if (parsed && parsed.label) {
+        if (parsed.label) {
           return {
             disease: parsed.label,
-            confidence: typeof parsed.confidence === "number" ? parsed.confidence : null
+            confidence: Number(parsed.confidence)
           };
         }
 
-        if (parsed && Array.isArray(parsed.data)) {
-          const obj = parsed.data.find((item) => item && typeof item === "object" && item.label);
-          if (obj) {
-            return {
-              disease: obj.label,
-              confidence: typeof obj.confidence === "number" ? obj.confidence : null
-            };
-          }
-
-          const str = parsed.data.find((item) => typeof item === "string");
-          if (str) {
-            const match = str.match(/^(.*?)(?:\s*\(([\d.]+)%\))?$/);
-            if (match) {
+        if (Array.isArray(parsed.data)) {
+          for (const item of parsed.data) {
+            if (item && typeof item === "object" && item.label) {
               return {
-                disease: match[1].trim(),
-                confidence: match[2] ? parseFloat(match[2]) : null
+                disease: item.label,
+                confidence: Number(item.confidence)
               };
+            }
+
+            if (typeof item === "string") {
+              const obj = parseLooseJson(item);
+              if (obj && obj.label) {
+                return {
+                  disease: obj.label,
+                  confidence: Number(obj.confidence)
+                };
+              }
             }
           }
         }
+      }
+
+      const labelMatch = resultText.match(/['"]label['"]\s*:\s*['"]([^'"]+)['"]/i);
+      const confidenceMatch = resultText.match(/['"]confidence['"]\s*:\s*([0-9.]+)/i);
+
+      if (labelMatch) {
+        return {
+          disease: labelMatch[1].trim(),
+          confidence: confidenceMatch ? Number(confidenceMatch[1]) : null
+        };
+      }
+
+      const simpleMatch = resultText.match(/([A-Za-z][A-Za-z\s_-]+)\s*\(([0-9.]+)%\)/);
+      if (simpleMatch) {
+        return {
+          disease: simpleMatch[1].trim(),
+          confidence: Number(simpleMatch[2])
+        };
       }
 
       return null;
@@ -218,8 +233,7 @@
         });
 
         if (!postRes.ok) {
-          const errText = await postRes.text();
-          throw new Error(`API error ${postRes.status}: ${errText}`);
+          throw new Error(`API error ${postRes.status}: ${await postRes.text()}`);
         }
 
         const postJson = await postRes.json();
@@ -232,8 +246,7 @@
         const resultRes = await fetch(`${HF_BASE}/gradio_api/call/lambda/${eventId}`);
 
         if (!resultRes.ok) {
-          const errText = await resultRes.text();
-          throw new Error(`Result fetch error ${resultRes.status}: ${errText}`);
+          throw new Error(`Result fetch error ${resultRes.status}: ${await resultRes.text()}`);
         }
 
         const resultText = await resultRes.text();
@@ -246,7 +259,7 @@
         }
 
         const disease = prediction.disease;
-        const confidence = prediction.confidence;
+        const confidence = Number.isFinite(prediction.confidence) ? prediction.confidence : null;
         const isHealthy = disease.toLowerCase().includes("healthy");
 
         results.innerHTML = `
@@ -275,7 +288,7 @@
                   </div>
                   <div class="w-full bg-gray-200 rounded-full h-3">
                     <div class="h-3 ${isHealthy ? "bg-green-500" : "bg-red-500"} rounded-full"
-                      style="width: ${Math.min(confidence, 100)}%"></div>
+                      style="width:${Math.min(confidence, 100)}%"></div>
                   </div>
                 </div>
               ` : ""}
@@ -311,12 +324,16 @@
 
         refreshIcons();
       } catch (error) {
-        console.error(error);
+        console.error("Prediction error:", error);
 
         results.innerHTML = `
           <div class="bg-white rounded-xl shadow-lg p-8 border-l-4 border-red-500">
             <h3 class="text-lg font-bold text-red-700">Error</h3>
             <p class="text-gray-700 mt-2">${error.message}</p>
+            <details class="mt-4 text-left">
+              <summary class="cursor-pointer text-sm text-gray-600">Show raw API response</summary>
+              <pre class="mt-2 text-xs bg-gray-100 p-3 rounded overflow-auto whitespace-pre-wrap">${(error.rawResponse || "").replace(/</g, "&lt;")}</pre>
+            </details>
             <p class="text-sm text-gray-500 mt-3">
               Space URL:
               <code class="text-xs bg-gray-100 px-1 rounded">${HF_BASE}</code>
