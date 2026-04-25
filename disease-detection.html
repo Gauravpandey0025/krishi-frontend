@@ -14,9 +14,7 @@
     tailwind.config = {
       theme: {
         extend: {
-          fontFamily: {
-            sofia: ["sofia-pro", "sans-serif"]
-          },
+          fontFamily: { sofia: ["sofia-pro", "sans-serif"] },
           colors: {
             "jharkhand-green": "#228B22",
             "jharkhand-orange": "#FF8C00"
@@ -89,7 +87,7 @@
     let selectedBase64 = null;
 
     const HF_BASE = "https://pandeygaurav0025-disease-predictor.hf.space";
-    const HF_API_URL = `${HF_BASE}/gradio_api/call/lambda`;
+    const HF_API_URL = `${HF_BASE}/gradio_api/call/predict`;
 
     function refreshIcons() {
       setTimeout(() => window.lucide?.createIcons(), 0);
@@ -132,21 +130,6 @@
       refreshIcons();
     }
 
-    function parseLooseJson(text) {
-      try {
-        return JSON.parse(text);
-      } catch (_) {
-        try {
-          const fixed = text
-            .replace(/([{,]\s*)'([^']+?)'\s*:/g, '$1"$2":')
-            .replace(/:\s*'([^']*?)'/g, ': "$1"');
-          return JSON.parse(fixed);
-        } catch (_) {
-          return null;
-        }
-      }
-    }
-
     function extractPrediction(resultText) {
       const lines = resultText.split("\n");
 
@@ -157,54 +140,25 @@
         const payload = line.replace(/^data:\s*/, "").trim();
         if (!payload || payload === "[DONE]") continue;
 
-        const parsed = parseLooseJson(payload);
-        if (!parsed) continue;
+        try {
+          const parsed = JSON.parse(payload);
 
-        if (parsed.label) {
-          return {
-            disease: parsed.label,
-            confidence: Number(parsed.confidence)
-          };
-        }
-
-        if (Array.isArray(parsed.data)) {
-          for (const item of parsed.data) {
-            if (item && typeof item === "object" && item.label) {
-              return {
-                disease: item.label,
-                confidence: Number(item.confidence)
-              };
-            }
-
-            if (typeof item === "string") {
-              const obj = parseLooseJson(item);
-              if (obj && obj.label) {
-                return {
-                  disease: obj.label,
-                  confidence: Number(obj.confidence)
-                };
-              }
-            }
+          if (parsed?.data?.[0]?.label) {
+            return {
+              disease: parsed.data[0].label,
+              confidence: parsed.data[0].confidence ?? null
+            };
           }
+
+          if (parsed?.label) {
+            return {
+              disease: parsed.label,
+              confidence: parsed.confidence ?? null
+            };
+          }
+        } catch (e) {
+          console.log("Parse skip:", payload);
         }
-      }
-
-      const labelMatch = resultText.match(/['"]label['"]\s*:\s*['"]([^'"]+)['"]/i);
-      const confidenceMatch = resultText.match(/['"]confidence['"]\s*:\s*([0-9.]+)/i);
-
-      if (labelMatch) {
-        return {
-          disease: labelMatch[1].trim(),
-          confidence: confidenceMatch ? Number(confidenceMatch[1]) : null
-        };
-      }
-
-      const simpleMatch = resultText.match(/([A-Za-z][A-Za-z\s_-]+)\s*\(([0-9.]+)%\)/);
-      if (simpleMatch) {
-        return {
-          disease: simpleMatch[1].trim(),
-          confidence: Number(simpleMatch[2])
-        };
       }
 
       return null;
@@ -243,8 +197,7 @@
           throw new Error("No event_id returned from Hugging Face.");
         }
 
-        const resultRes = await fetch(`${HF_BASE}/gradio_api/call/lambda/${eventId}`);
-
+        const resultRes = await fetch(`${HF_API_URL}/${eventId}`);
         if (!resultRes.ok) {
           throw new Error(`Result fetch error ${resultRes.status}: ${await resultRes.text()}`);
         }
@@ -259,7 +212,7 @@
         }
 
         const disease = prediction.disease;
-        const confidence = Number.isFinite(prediction.confidence) ? prediction.confidence : null;
+        const confidence = prediction.confidence !== null ? Number(prediction.confidence) : null;
         const isHealthy = disease.toLowerCase().includes("healthy");
 
         results.innerHTML = `
@@ -278,7 +231,7 @@
                 <p class="text-gray-500">AI Prediction Result</p>
               </div>
 
-              ${confidence !== null ? `
+              ${confidence !== null && !Number.isNaN(confidence) ? `
                 <div class="max-w-md mx-auto mb-6">
                   <div class="flex justify-between text-sm text-gray-600 mb-1">
                     <span>Model Confidence</span>
@@ -324,16 +277,11 @@
 
         refreshIcons();
       } catch (error) {
-        console.error("Prediction error:", error);
-
+        console.error(error);
         results.innerHTML = `
           <div class="bg-white rounded-xl shadow-lg p-8 border-l-4 border-red-500">
             <h3 class="text-lg font-bold text-red-700">Error</h3>
             <p class="text-gray-700 mt-2">${error.message}</p>
-            <details class="mt-4 text-left">
-              <summary class="cursor-pointer text-sm text-gray-600">Show raw API response</summary>
-              <pre class="mt-2 text-xs bg-gray-100 p-3 rounded overflow-auto whitespace-pre-wrap">${(error.rawResponse || "").replace(/</g, "&lt;")}</pre>
-            </details>
             <p class="text-sm text-gray-500 mt-3">
               Space URL:
               <code class="text-xs bg-gray-100 px-1 rounded">${HF_BASE}</code>
