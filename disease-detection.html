@@ -198,9 +198,20 @@
         }
 
         // If we got string outputs, use the last one (most complete)
-        if (!disease && allStrings.length > 0) {
-          disease = allStrings[allStrings.length - 1].replace(/^Prediction:\s*/i, "").trim();
+        const validResult = allStrings.find(str => str.match(/\(.+%\)/));
+
+        if (!validResult) {
+          console.log("DEBUG allStrings:", allStrings);
+          throw new Error("Valid prediction not found");
         }
+        
+        disease = validResult
+          .replace('🦠', '')
+          .replace(/\(.*\)/, '')
+          .trim();
+        
+        const match = validResult.match(/\((.*?)%\)/);
+        if (match) confidence = parseFloat(match[1]);
 
         if (!disease) {
           throw new Error("Could not parse prediction. Raw response: " + resultText.slice(0, 500));
