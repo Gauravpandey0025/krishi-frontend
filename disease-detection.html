@@ -178,30 +178,48 @@
         console.log("RAW SSE RESPONSE:", resultText);
 
         // Parse all data: lines, collect every non-empty string value
-        let disease = "";
-        let confidence = null;
-        
-        for (const line of resultText.split("\n")) {
-          if (!line.startsWith("data: ")) continue;
-        
-          try {
-            const parsed = JSON.parse(line.slice(6));
-        
-            // ✅ Handle Gradio response
-            const data = parsed?.data?.[0] || parsed;
-        
-            if (data?.label) {
-              disease = data.label;
-              confidence = data.confidence;
-              break;
-            }
-        
-          } catch (e) {}
-        }
-
-        if (!disease) {
-          throw new Error("Could not extract prediction");
-        }
+          let disease = "";
+          let confidence = null;
+          
+          for (const line of resultText.split("\n")) {
+            if (!line.startsWith("data: ")) continue;
+          
+            try {
+              const parsed = JSON.parse(line.slice(6));
+          
+              // 🔥 HANDLE ARRAY RESPONSE
+              if (Array.isArray(parsed)) {
+                parsed.forEach(item => {
+                  if (item && typeof item === "object" && item.label) {
+                    disease = item.label;
+                    confidence = item.confidence;
+                  }
+                });
+              }
+          
+              // 🔥 HANDLE {data: [...]}
+              if (parsed?.data && Array.isArray(parsed.data)) {
+                parsed.data.forEach(item => {
+                  if (item && typeof item === "object" && item.label) {
+                    disease = item.label;
+                    confidence = item.confidence;
+                  }
+                });
+              }
+          
+              // 🔥 HANDLE DIRECT OBJECT
+              if (parsed && typeof parsed === "object" && parsed.label) {
+                disease = parsed.label;
+                confidence = parsed.confidence;
+              }
+          
+            } catch (e) {}
+          }
+          
+          if (!disease) {
+            console.log("RAW RESPONSE:", resultText);
+            throw new Error("Could not extract prediction");
+          }
 
         // If we got string outputs, use the last one (most complete)
         const validResult = allStrings.find(str => 
