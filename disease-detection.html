@@ -198,7 +198,9 @@
         }
 
         // If we got string outputs, use the last one (most complete)
-        const validResult = allStrings.find(str => str.match(/\(.+%\)/));
+        const validResult = allStrings.find(str => 
+        typeof str === "string" && str.match(/\(\d+(\.\d+)?%\)/)
+        );
 
         if (!validResult) {
           console.log("DEBUG allStrings:", allStrings);
@@ -206,10 +208,9 @@
         }
         
         disease = validResult
-          .replace('🦠', '')
-          .replace(/\(.*\)/, '')
-          .trim();
-        
+        .replace(/^[^\w]+/, '')   // removes ANY emoji or symbol at start
+        .replace(/\(.*\)/, '')    // removes (xx%)
+        .trim();
         const match = validResult.match(/\((.*?)%\)/);
         if (match) confidence = parseFloat(match[1]);
 
